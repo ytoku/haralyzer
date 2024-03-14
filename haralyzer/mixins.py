@@ -4,7 +4,7 @@ import abc
 from collections.abc import MutableMapping
 from typing import Any, Optional
 
-from cached_property import cached_property
+from .compat import cached_property
 
 
 class GetHeaders:

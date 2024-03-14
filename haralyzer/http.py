@@ -1,7 +1,7 @@
 """Creates the Request and Response sub class that are used by each entry"""
 
 from typing import Optional
-from cached_property import cached_property
+from .compat import cached_property
 from .mixins import HttpTransaction
 
 

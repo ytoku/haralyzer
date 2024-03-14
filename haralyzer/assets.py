@@ -10,11 +10,11 @@ import re
 from typing import List, Optional
 
 from collections import Counter
-from cached_property import cached_property
 
 # I know this import is stupid, but I cannot use dateutil.parser without it
 from dateutil import parser
 
+from .compat import cached_property
 from .errors import PageNotFoundError
 from .http import Request, Response
 from .mixins import MimicDict
