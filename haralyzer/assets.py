@@ -7,7 +7,7 @@ import functools
 import datetime
 import json
 import re
-from typing import List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from collections import Counter
 
@@ -43,7 +43,7 @@ class HarParser:
     performance of a web page.
     """
 
-    def __init__(self, har_data: dict = None):
+    def __init__(self, har_data: Optional[Dict[str, Any]] = None):
         """
         :param har_data: a ``dict`` representing the JSON of a HAR file
         (i.e. - you need to load the HAR data into a string using json.loads or
@@ -57,7 +57,7 @@ class HarParser:
         self.har_data = har_data["log"]
 
     @staticmethod
-    def from_file(file: [str, bytes]) -> "HarParser":
+    def from_file(file: Union[str, bytes]) -> "HarParser":
         """
         Function create a HarParser from a file path
 
@@ -70,7 +70,7 @@ class HarParser:
             return HarParser(json.load(infile))
 
     @staticmethod
-    def from_string(data: [str, bytes]):
+    def from_string(data: Union[str, bytes]):
         """
         Function to load string or bytes as a HarParser
 
@@ -226,7 +226,7 @@ class HarParser:
         return str(entry.response.status) == status_code
 
     @staticmethod
-    def create_asset_timeline(asset_list: List["HarEntry"]) -> dict:
+    def create_asset_timeline(asset_list: List["HarEntry"]) -> Dict[str, List["HarEntry"]]:
         """
         Returns a `dict` of the timeline for the requested assets. The key is
         a datetime object (down to the millisecond) of ANY time where at least
@@ -240,7 +240,7 @@ class HarParser:
         """
         results = {}
         for asset in asset_list:
-            time_key = asset.startTime
+            time_key = asset._startTime_strict
             load_time = int(asset.time)
             # Add the start time and asset to the results dict
             if time_key in results:
@@ -328,7 +328,10 @@ class HarPage:
     """
 
     def __init__(
-        self, page_id: str, har_parser: "HarParser" = None, har_data: dict = None
+        self,
+        page_id: str,
+        har_parser: Optional["HarParser"] = None,
+        har_data: Optional[Dict[str, Any]] = None,
     ):
         """
         :param page_id: Page ID
@@ -414,6 +417,8 @@ class HarPage:
             assets = self.entries
         else:
             assets = getattr(self, f"{asset_type}_files", None)
+            if assets is None:
+                raise ValueError(f"{asset_type}_files does not exist")
         return self.get_total_size_trans(assets)
 
     def _get_asset_size(self, asset_type: str):
@@ -428,6 +433,8 @@ class HarPage:
             assets = self.entries
         else:
             assets = getattr(self, f"{asset_type}_files", None)
+            if assets is None:
+                raise ValueError(f"{asset_type}_files does not exist")
         return self.get_total_size(assets)
 
     def _get_asset_load(self, asset_type: str) -> Optional[int]:
@@ -457,13 +464,19 @@ class HarPage:
             #   asynchronous=False)
         return self.get_load_time(content_type=self.asset_types[asset_type])
 
+    def _get_asset_load_strict(self, asset_type: str) -> int:
+        value = self._get_asset_load(asset_type)
+        if value is None:
+            raise ValueError("_get_asset_load returns None")
+        return value
+
     def filter_entries(
         self,
-        request_type: str = None,
-        content_type: str = None,
-        status_code: str = None,
-        http_version: str = None,
-        load_time__gt: int = None,
+        request_type: Optional[str] = None,
+        content_type: Optional[str] = None,
+        status_code: Optional[str] = None,
+        http_version: Optional[str] = None,
+        load_time__gt: Optional[int] = None,
         regex: bool = True,
     ) -> List["HarEntry"]:
         # pylint: disable=R0913,W0105
@@ -527,9 +540,9 @@ class HarPage:
 
     def get_load_time(
         self,
-        request_type: str = None,
-        content_type: str = None,
-        status_code: str = None,
+        request_type: Optional[str] = None,
+        content_type: Optional[str] = None,
+        status_code: Optional[str] = None,
         asynchronous: bool = True,
         **kwargs,
     ) -> int:
@@ -609,7 +622,7 @@ class HarPage:
     # BEGIN PROPERTIES #
 
     @cached_property
-    def hostname(self) -> str:  # pylint: disable=R1710
+    def hostname(self) -> str:
         """
         :return: Hostname of the initial request
         :rtype: str
@@ -617,6 +630,7 @@ class HarPage:
         for header in self.entries[0].request.headers:
             if header["name"] == "Host":
                 return header["value"]
+        raise ValueError("Host header does not exist")
 
     @cached_property
     def url(self) -> Optional[str]:
@@ -648,7 +662,7 @@ class HarPage:
                 page_entries.append(HarEntry(entry))
         # Make sure the entries are sorted chronologically
         if all(x.startTime for x in page_entries):
-            return sorted(page_entries, key=lambda entry: entry.startTime)
+            return sorted(page_entries, key=lambda entry: entry._startTime_strict)
         return page_entries
 
     @cached_property
@@ -696,7 +710,7 @@ class HarPage:
     # FILE TYPE PROPERTIES #
 
     @cached_property
-    def actual_page(self) -> "HarEntry":  # pylint: disable=R1710
+    def actual_page(self) -> "HarEntry":
         """
         Returns the first entry object that does not have a redirect status,
         indicating that it is the actual page we care about (after redirects).
@@ -707,6 +721,7 @@ class HarPage:
         for entry in self.entries:
             if not 300 <= entry.response.status <= 399:
                 return entry
+        raise ValueError("No actuacl page")
 
     @cached_property
     def duplicate_url_request(self) -> dict:
@@ -1067,6 +1082,13 @@ class HarEntry(MimicDict):
         except parser._parser.ParserError:
             return None
 
+    @property
+    def _startTime_strict(self) -> datetime.datetime:
+        value = self.startTime
+        if value is None:
+            raise ValueError("Bad startTime")
+        return value
+
     @cached_property
     def cache(self) -> str:
         """
@@ -1076,7 +1098,7 @@ class HarEntry(MimicDict):
         return self.raw_entry["cache"]
 
     @cached_property
-    def cookies(self) -> list:
+    def cookies(self) -> List[str]:
         """
         :return: Request and Response Cookies
         :rtype: list

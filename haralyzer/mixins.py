@@ -2,7 +2,7 @@
 
 import abc
 from collections.abc import MutableMapping
-from typing import Any, Optional
+from typing import Any, Dict, List, Optional
 
 from .compat import cached_property
 
@@ -64,13 +64,13 @@ class MimicDict(MutableMapping):
 class HttpTransaction(GetHeaders, MimicDict):
     """Class the represents a request or response"""
 
-    def __init__(self, entry: dict):
+    def __init__(self, entry: Dict[str, Any]):
         self.raw_entry = entry
         super().__init__()
 
     # Base class gets properties that belong to both request/response
     @cached_property
-    def headers(self) -> list:
+    def headers(self) -> List[Dict[str, str]]:
         """
         Headers from the entry
 

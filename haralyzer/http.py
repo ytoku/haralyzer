@@ -1,6 +1,6 @@
 """Creates the Request and Response sub class that are used by each entry"""
 
-from typing import Optional
+from typing import Dict, List, Optional
 from .compat import cached_property
 from .mixins import HttpTransaction
 
@@ -32,7 +32,7 @@ class Request(HttpTransaction):
         return self.raw_entry["bodySize"]
 
     @cached_property
-    def cookies(self) -> list:
+    def cookies(self) -> List[str]:
         """
         :return: Cookies from the request
         :rtype: list
@@ -64,7 +64,7 @@ class Request(HttpTransaction):
         return self.raw_entry["method"]
 
     @cached_property
-    def queryString(self) -> list:
+    def queryString(self) -> List[str]:
         """
         :return: Query string from the request
         :rtype: list
@@ -154,7 +154,7 @@ class Request(HttpTransaction):
 class Response(HttpTransaction):
     """Response object for a HarEntry"""
 
-    def __init__(self, url: str, entry: dict):
+    def __init__(self, url: str, entry: Dict[str, str]):
         """
 
         :param url: Responses don't have a URL so need to get it passed

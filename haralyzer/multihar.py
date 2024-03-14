@@ -2,7 +2,7 @@
 
 from statistics import stdev
 from statistics import mean
-from typing import Union, List
+from typing import Union, Dict, List
 from .assets import HarParser
 from .compat import cached_property
 
@@ -34,7 +34,7 @@ class MultiHarParser:
         self.page_id = page_id
         self.decimal_precision = decimal_precision
 
-    def get_load_times(self, asset_type: str) -> list:
+    def get_load_times(self, asset_type: str) -> List[int]:
         """
         Just a list of the load times of a certain asset type for each page
 
@@ -100,7 +100,7 @@ class MultiHarParser:
         return pages
 
     @cached_property
-    def asset_types(self) -> dict:
+    def asset_types(self) -> Dict[str, str]:
         """
         Mimic the asset types stored in HarPage
 
